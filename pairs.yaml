@@ -1,0 +1,8 @@
+exchange: binance
+pairs:
+- symbol: "BTC/USDT"
+timeframes: ["1m", "1h"]
+- symbol: "ETH/USDT"
+timeframes: ["1h"]
+- symbol: "SOL/USDT"
+timeframes: ["1h", "4h"]

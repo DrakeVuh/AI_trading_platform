@@ -1,0 +1,10 @@
+ccxt>=4.3.80
+pandas>=2.2.2
+pyarrow>=17.0.0         # để lưu parquet (nhanh, gọn)
+python-dotenv>=1.0.1    # nếu sau này bạn muốn dùng .env
+tqdm>=4.66.5
+requests>=2.32.0
+tenacity>=8.2.3         # retry/backoff
+pytest>=8.2.0
+responses>=0.25.3       # HTTP mocking
+freezegun>=1.5.1
