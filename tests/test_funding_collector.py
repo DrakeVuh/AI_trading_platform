@@ -250,3 +250,63 @@ def test_idempotent_runs(tmp_path):
     assert stored.iloc[0]["timestamp"] == pd.Timestamp(times[0])
     assert stored.iloc[-1]["timestamp"] == pd.Timestamp(times[-1])
 
+
+@responses.activate
+def test_cli_aliases_and_z_timestamp(tmp_path, monkeypatch):
+    logger = funding_collector.logger
+    handler = logger.handlers[0]
+    original_stream = handler.stream
+    stream = io.StringIO()
+    handler.stream = stream
+
+    try:
+        url = funding_collector.BINANCE_FUTURES_REST
+        since = datetime(2024, 5, 1, 0, tzinfo=timezone.utc)
+        until = since + timedelta(hours=16)
+
+        responses.add(
+            responses.GET,
+            url,
+            json=[
+                {
+                    "symbol": "BTCUSDT",
+                    "fundingRate": "0.0001",
+                    "fundingTime": _ms(since),
+                    "nextFundingTime": _ms(since + timedelta(hours=8)),
+                }
+            ],
+            status=200,
+        )
+
+        out_dir = tmp_path / "data_root"
+        argv = [
+            "funding_collector.py",
+            "--symbol",
+            "BTC/USDT",
+            "--since",
+            since.isoformat().replace("+00:00", "Z"),
+            "--to",
+            until.isoformat().replace("+00:00", "Z"),
+            "--out",
+            str(out_dir),
+            "--bucket",
+            "8h",
+            "--disable-ccxt",
+        ]
+
+        monkeypatch.setattr(sys, "argv", argv)
+
+        funding_collector.main()
+
+        symbol_dir = out_dir / "raw" / "crypto" / "binance" / "funding" / "BTCUSDT"
+        target = symbol_dir / "2024-05.parquet"
+        assert target.exists()
+
+        stored = pd.read_parquet(target)
+        assert not stored.empty
+        assert stored.iloc[0]["timestamp"] == pd.Timestamp(since)
+
+        logs = [json.loads(line) for line in stream.getvalue().splitlines() if line]
+        assert any(entry.get("exchange") == "binance" for entry in logs)
+    finally:
+        handler.stream = original_stream
